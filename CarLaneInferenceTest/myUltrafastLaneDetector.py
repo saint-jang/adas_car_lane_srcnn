@@ -125,9 +125,9 @@ class UltrafastLaneDetector():
 		# Parse the output of the model
 
 		processed_output = np.squeeze(output[0])
-		print(processed_output.shape)
-		print(np.min(processed_output), np.max(processed_output))
-		print(processed_output.reshape((1,-1)))
+		# print(processed_output.shape)
+		# print(np.min(processed_output), np.max(processed_output))
+		# print(processed_output.reshape((1,-1)))
 		processed_output = processed_output[:, ::-1, :]
 		prob = scipy.special.softmax(processed_output[:-1, :, :], axis=0)
 		idx = np.arange(cfg.griding_num) + 1
