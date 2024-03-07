@@ -1,4 +1,4 @@
-# last day : 2024-02-08 14:12
+# last day : 2024-02-12
 
 import cv2
 import numpy as np
@@ -7,6 +7,8 @@ import datetime
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
 from myUltrafastLaneDetector import UltrafastLaneDetector, ModelType 
+import curses
+import matplotlib.pyplot as plt
 
 ## input Parameter ##
 # Option Read
@@ -26,6 +28,9 @@ parser.add_argument("--noModel", dest="noModel", type=bool, default=False)
 parser.add_argument("--inputSize", dest="inputSize", type=float, default=1.0)
 parser.add_argument("--outputSize", dest="outputSize", type=float, default=1.0)
 parser.add_argument("--record", dest="record", type=bool, default=False)
+parser.add_argument("--recordName", dest="recordName", type=str, default="adasVideo.mp4")
+parser.add_argument("--graphFPS", dest="graphFPS", type=bool, default=False)
+parser.add_argument("--graphFPSname", dest="graphFPSname", type=str, default="adasGraphFPS.png")
 args = parser.parse_args()
 
 # Vehicle Detection Model Option
@@ -84,6 +89,15 @@ OUTPUT_SIZE = args.outputSize
 
 # Record On Off
 RECORD = args.record
+
+# Write VIdeo Name
+RECORD_NAME = args.recordName
+
+# GraphFPS On Off
+GRAPH_FPS = args.graphFPS
+
+# GraphFPS Name
+GRAPH_FPS_NAME = args.graphFPSname
 
 # Vehicle Detection Function
 def VDmodelFunction(frame):
@@ -160,7 +174,7 @@ def drawLane(frame, results, laneDetect):
     return frame
 
 # Frame View Function
-def viewFrame(cap):
+def viewFrame(cap, stdscr):
     out = None
     # Write Frame Option
     if (RECORD == True) and (INPUT_TYPE != "image"):
@@ -169,11 +183,23 @@ def viewFrame(cap):
             h = int(h * OUTPUT_SIZE)
             w = int(w * OUTPUT_SIZE)
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        out = cv2.VideoWriter('adasVideo.mp4', fourcc, 30.0, (w, h))
-        print(w, h)
+        out = cv2.VideoWriter(RECORD_NAME, fourcc, 30.0, (w, h))
+
+    # GraphFPS set
+    graphFPSxCount = 0
+    graphFPSx = []
+    graphFPSy = []
 
     # Play Frames
     while True:
+        # Write Curses Texts
+        texts = []
+        texts.append(f"Loop : {LOOP}")
+        texts.append(f"Skip : {SKIP}")
+        texts.append(f"Input : {INPUT}")
+        texts.append(f"Record : {RECORD}")
+        texts.append(f"graphFPS : {GRAPH_FPS}")
+
         # Start Time Read
         start_time = datetime.datetime.now()
 
@@ -194,14 +220,25 @@ def viewFrame(cap):
                 else:
                     if cap.get(cv2.CAP_PROP_POS_FRAMES) == cap.get(cv2.CAP_PROP_FRAME_COUNT):
                         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
+            if INPUT_TYPE == "video":
+                texts.append(f"VideoFrame : {int(cap.get(cv2.CAP_PROP_POS_FRAMES))} / {int(cap.get(cv2.CAP_PROP_FRAME_COUNT))}")
         else:
             # Image Read
             frame = cv2.imread(cap, cv2.IMREAD_COLOR)
 
+        texts.append(f"InputSize : {frame.shape[1]} {frame.shape[0]}")
+
+        # graphFPSxCount set
+        if GRAPH_FPS == True:
+            graphFPSxCount += 1
+            if SKIP != 0:
+                graphFPSxCount += SKIP
+            graphFPSx.append(graphFPSxCount)
+
         # Resize Input Frame Size
         frame = cv2.resize(frame, (0, 0), fx=INPUT_SIZE, fy=INPUT_SIZE, interpolation=cv2.INTER_LINEAR)
-        
+        texts.append(f"InputResize : {frame.shape[1]} {frame.shape[0]}")
+
         # On Off Use Model
         if NO_MODEL == False:
             copyFrame = np.copy(frame)
@@ -218,7 +255,8 @@ def viewFrame(cap):
 
         # Resize Output Frame Size
         frame = cv2.resize(frame, (0, 0), fx=OUTPUT_SIZE, fy=OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
-        
+        texts.append(f"OutputResize : {frame.shape[1]} {frame.shape[0]}")
+
         # End Time Read
         end_time = datetime.datetime.now()
 
@@ -226,8 +264,11 @@ def viewFrame(cap):
         work_time = (end_time - start_time).total_seconds()
 
         # Draw FPS in Frame
-        fps = f"FPS : {1 / work_time:.2f}"
-        cv2.putText(frame, fps, (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        fps = 1 / work_time
+        cv2.putText(frame, f"FPS : {fps:.2f}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+        texts.append(f"FPS : {fps:.2f}")
+        if GRAPH_FPS == True:
+            graphFPSy.append(fps)
 
         # Write Frame 
         if (RECORD == True) and (INPUT_TYPE != "image"):
@@ -235,6 +276,9 @@ def viewFrame(cap):
 
         # Show Frame
         cv2.imshow('adasViewer.py', frame)
+
+        # Show Curses
+        cursesDisplay(stdscr, texts)
 
         # If No Use Model, Frame Speed Is 25
         timeRate = 25
@@ -245,6 +289,14 @@ def viewFrame(cap):
         if cv2.waitKey(timeRate) & 0xFF == ord('q'):
             print("Frame Close")
             break
+    
+    # graphFPSwrite
+    if GRAPH_FPS == True:
+        plt.plot(graphFPSx, graphFPSy)
+        plt.title(GRAPH_FPS_NAME)
+        plt.xlabel("Frame")
+        plt.ylabel("FPS")
+        plt.savefig(GRAPH_FPS_NAME)
 
     # Clearing Code
     if (RECORD == True) and (INPUT_TYPE != "image"):
@@ -254,32 +306,42 @@ def viewFrame(cap):
     cv2.destroyAllWindows()
 
 # Image View Function
-def viewImage():
-    viewFrame(INPUT)
+def viewImage(stdscr):
+    viewFrame(INPUT, stdscr)
 
 # Video View Function
-def viewVideo():
+def viewVideo(stdscr):
     cap = cv2.VideoCapture(INPUT)
     if cap.isOpened()==False:
         print("Video Open Failed")
         exit()
-    viewFrame(cap)
+    viewFrame(cap, stdscr)
 
 # Camera View Function
-def viewCamera():
+def viewCamera(stdscr):
     cap = cv2.VideoCapture(0)
     if cap.isOpened()==False:
         print("Camera Open Failed")
         exit()
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    viewFrame(cap)
+    viewFrame(cap, stdscr)
+
+# Curses Display
+def cursesDisplay(stdscr, texts=[]):
+    stdscr.clear()
+    for i, text in enumerate(texts):
+        stdscr.addstr(i, 0, text)
+    stdscr.refresh()
 
 # main
-if __name__ == "__main__":
+def main(stdscr):
     if INPUT_TYPE == "image":
-        viewImage()
+        viewImage(stdscr)
     elif INPUT_TYPE == "video":
-        viewVideo()
+        viewVideo(stdscr)
     elif INPUT_TYPE == "camera":
-        viewCamera()
+        viewCamera(stdscr)
+
+if __name__ == "__main__":
+    curses.wrapper(main)
