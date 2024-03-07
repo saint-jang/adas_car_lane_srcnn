@@ -28,7 +28,7 @@ adasViewer.py 사용법
 			기본설정 : False
 		--VDmodel <차량인식모델>
 			차량인식 모델 변경
-			기본설정 : "best.pt"
+			기본설정 : "yolov8n_epoch_200_batch_32_best.pt"
 		--VDmodelAdd <추가사항>
 			차량인식 모델의 추가사항 변경
 			기본설정 : "mycoco128.txt"
@@ -41,10 +41,14 @@ adasViewer.py 사용법
 			기본설정 : False
 		--LDmodel <차선인식모델>
 			차선인식 모델 변경
-			기본설정 : "epoch_20_batch_32.onnx"
+			기본설정 : "epoch_200_batch_32_loss_best.onnx"
 		--LDmodelAdd <추가사항>
 			차선인식 모델의 추가사항 변경
 			기본설정 : "culane"
+	차선유지 관련
+		--LaneChange <Flase/True>
+			차선유지 경고메시지 사용 여부 (차선인식 모델이 사용중일때 사용가능)
+			기본설정 : True
 	입력 데이터 관련
 		--input <입력데이터>
 			입력 데이터 변경
@@ -88,4 +92,7 @@ adasViewer.py 사용법
 			기본설정 : False
 		--noCurses <False/True>
 			curses라이브러리를 이용해 내부 파라미터 값 출력
+			기본설정 : True
+		--noView <False/True>
+			영상화면 사용 여부
 			기본설정 : True
