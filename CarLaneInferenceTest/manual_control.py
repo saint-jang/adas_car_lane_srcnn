@@ -52,6 +52,8 @@ Use ARROWS or WASD keys for control.
     F1           : toggle HUD
     H/?          : toggle help
     ESC          : quit
+
+    K            : kgw Mode On/Off
 """
 
 from __future__ import print_function 
@@ -126,6 +128,7 @@ try:
     from pygame.locals import K_g
     from pygame.locals import K_h
     from pygame.locals import K_i
+    from pygame.locals import K_k # my Code
     from pygame.locals import K_l
     from pygame.locals import K_m
     from pygame.locals import K_n
@@ -406,6 +409,9 @@ class KeyboardControl(object):
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.KEYUP:
+                if event.key == K_k: # my Code Start
+                    kgwOnOff() 
+                    return True # my Code End
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_BACKSPACE:
@@ -1241,6 +1247,7 @@ class CameraManager(object):
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
+##################################################################################################################################
 # -> 차선인식 차량인식 적용
 import cv2 
 from ADASlib.VehicleDetection import VD_Model
@@ -1251,11 +1258,57 @@ VD_MODEL = 'yolov8n_epoch_200_batch_60_best.pt'
 VD_MODEL_ADD = 'mycoco128.txt'
 VDmodel = VD_Model(model=VD_MODEL, modelAdd=VD_MODEL_ADD, DS=True)
 
-
 LD_MODEL = "epoch_200_batch_50_loss_best.onnx"
 LD_MODEL_ADD = "culane"
 LDmodel = LD_Model(LD_MODEL, LD_MODEL_ADD)
 laneChange = LaneChange()
+
+kgwStart = False
+
+def kgwOnOff():
+    global kgwStart
+    if kgwStart == False:
+        kgwStart = True
+    else:
+        kgwStart = False
+
+def kgwDisplay(display):
+    start_time = datetime.datetime.now()
+    screenshot = pygame.surfarray.array3d(display)
+    screenshot = np.rot90(screenshot)
+    screenshot = np.flipud(screenshot)
+    screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
+    frame = np.copy(screenshot)
+    copyFrame = np.copy(frame)
+    LDmodel.setFrame(copyFrame)
+    vLane = None
+    laneResults, laneDetects = LDmodel.getData()
+    laneChange.setLeftLane(laneResults[1])
+    laneChange.setRightLane(laneResults[2])
+    LDmodel.laneResults, LDmodel.laneDetects, vLane = laneChange.getLastLane2LDmodelData(laneResults, laneDetects)
+    frame = LDmodel.getDraw(frame, vLane=vLane)
+    frame = laneChange.drawAngleData(frame)
+    frame = laneChange.drawDeltaAngleData(frame)
+    frame = laneChange.drawVariance(frame)
+    frame = laneChange.drawWarningSign(frame)
+    VDmodel.setFrame(copyFrame)
+    frame = VDmodel.getDraw(frame)
+    end_time = datetime.datetime.now()
+    work_time = (end_time - start_time).total_seconds()
+    fps = 1 / work_time
+    cv2.putText(frame, f"FPS : {fps:.2f}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+    # cv2.imshow("openCV", frame)
+    # cv2.waitKey(1)
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    frame = pygame.image.frombuffer(frame.flatten(), frame.shape[1::-1], 'RGB')
+    display.blit(frame, (0, 0))
+
+def kgwFunc(display):
+    global kgwStart
+    if kgwStart == True:
+        kgwDisplay(display)
+    
+##################################################################################################################################
 
 def game_loop(args):
     pygame.init()
@@ -1307,35 +1360,8 @@ def game_loop(args):
                 return
             world.tick(clock)
             world.render(display)
+            kgwFunc(display) # my Code
             pygame.display.flip()
-
-            # -> pygame 라이브러리를 이용해 현재화면을 가져오고 openCV화면으로 출력
-            start_time = datetime.datetime.now()
-            screenshot = pygame.surfarray.array3d(display)
-            screenshot = np.rot90(screenshot)
-            screenshot = np.flipud(screenshot)
-            screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
-            frame = np.copy(screenshot)
-            copyFrame = np.copy(frame)
-            LDmodel.setFrame(copyFrame)
-            vLane = None
-            laneResults, laneDetects = LDmodel.getData()
-            laneChange.setLeftLane(laneResults[1])
-            laneChange.setRightLane(laneResults[2])
-            LDmodel.laneResults, LDmodel.laneDetects, vLane = laneChange.getLastLane2LDmodelData(laneResults, laneDetects)
-            frame = LDmodel.getDraw(frame, vLane=vLane)
-            frame = laneChange.drawAngleData(frame)
-            frame = laneChange.drawDeltaAngleData(frame)
-            frame = laneChange.drawVariance(frame)
-            frame = laneChange.drawWarningSign(frame)
-            VDmodel.setFrame(copyFrame)
-            frame = VDmodel.getDraw(frame)
-            end_time = datetime.datetime.now()
-            work_time = (end_time - start_time).total_seconds()
-            fps = 1 / work_time
-            cv2.putText(frame, f"FPS : {fps:.2f}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-            cv2.imshow("openCV", frame)
-            cv2.waitKey(1)
 
     finally:
 
