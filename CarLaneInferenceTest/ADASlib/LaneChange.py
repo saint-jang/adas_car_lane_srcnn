@@ -19,7 +19,8 @@ class LaneChange:
         self.leftDeltaAngle = None
         self.rightDeltaAngle = None
         self.safeDelta = 1.5
-        self.safeAngle = 55.0
+        self.safeMaxAngle = 55.0
+        self.safeMinAngle = 35.0
         self.lSign = None
         self.rSign = None
         self.lVariange = None
@@ -224,7 +225,7 @@ class LaneChange:
             return 0 # no lane
         if (var == None) or (abs(var) > self.safeVarince):
             return 0 # no lane
-        if angle <= self.safeAngle:
+        if (self.safeMinAngle <= angle) and  (angle <= self.safeMaxAngle):
             return 1 # safe lane
         else:
             return 2 # danger
