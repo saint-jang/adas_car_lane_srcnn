@@ -410,8 +410,7 @@ class KeyboardControl(object):
                 return True
             elif event.type == pygame.KEYUP:
                 if event.key == K_k: # my Code Start
-                    kgwOnOff() 
-                    return True # my Code End
+                    kgwOnOff() # my Code End
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_BACKSPACE:
