@@ -380,6 +380,8 @@ class World(object):
 # -- KeyboardControl -----------------------------------------------------------
 # ==============================================================================
 
+from ADASlib.AdasCarla import ADAS # my Code Start
+adas = ADAS() # My Code End
 
 class KeyboardControl(object):
     """Class that handles keyboard input."""
@@ -410,7 +412,7 @@ class KeyboardControl(object):
                 return True
             elif event.type == pygame.KEYUP:
                 if event.key == K_k: # my Code Start
-                    kgwOnOff() # my Code End
+                    adas.ChangeModel() # my code End
                 if self._is_quit_shortcut(event.key):
                     return True
                 elif event.key == K_BACKSPACE:
@@ -609,7 +611,8 @@ class KeyboardControl(object):
                 world.player.apply_control(self._control)
 
     def _parse_vehicle_keys(self, keys, milliseconds):
-        if keys[K_UP] or keys[K_w]:
+        global adas
+        if keys[K_UP] or keys[K_w] or adas.accel:
             if not self._ackermann_enabled:
                 self._control.throttle = min(self._control.throttle + 0.1, 1.00)
             else:
@@ -618,7 +621,7 @@ class KeyboardControl(object):
             if not self._ackermann_enabled:
                 self._control.throttle = 0.0
 
-        if keys[K_DOWN] or keys[K_s]:
+        if keys[K_DOWN] or keys[K_s] or adas.brake:
             if not self._ackermann_enabled:
                 self._control.brake = min(self._control.brake + 0.2, 1)
             else:
@@ -629,12 +632,12 @@ class KeyboardControl(object):
                 self._control.brake = 0
 
         steer_increment = 5e-4 * milliseconds
-        if keys[K_LEFT] or keys[K_a]:
+        if keys[K_LEFT] or keys[K_a] or adas.left:
             if self._steer_cache > 0:
                 self._steer_cache = 0
             else:
                 self._steer_cache -= steer_increment
-        elif keys[K_RIGHT] or keys[K_d]:
+        elif keys[K_RIGHT] or keys[K_d] or adas.right:
             if self._steer_cache < 0:
                 self._steer_cache = 0
             else:
@@ -709,6 +712,11 @@ class HUD(object):
         t = world.player.get_transform()
         v = world.player.get_velocity()
         c = world.player.get_control()
+
+        global adas
+        adas.speed = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
+        adas.angle = c.steer
+
         compass = world.imu_sensor.compass
         heading = 'N' if compass > 270.5 or compass < 89.5 else ''
         heading += 'S' if 90.5 < compass < 269.5 else ''
@@ -1246,68 +1254,6 @@ class CameraManager(object):
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
 
-##################################################################################################################################
-# -> 차선인식 차량인식 적용
-import cv2 
-from ADASlib.VehicleDetection import VD_Model
-from ADASlib.LaneDetection import LD_Model
-from ADASlib.LaneChange import LaneChange
-
-VD_MODEL = 'yolov8n_epoch_200_batch_60_best.pt'
-VD_MODEL_ADD = 'mycoco128.txt'
-VDmodel = VD_Model(model=VD_MODEL, modelAdd=VD_MODEL_ADD, DS=True)
-
-LD_MODEL = "epoch_200_batch_50_loss_best.onnx"
-LD_MODEL_ADD = "culane"
-LDmodel = LD_Model(LD_MODEL, LD_MODEL_ADD)
-laneChange = LaneChange()
-
-kgwStart = False
-
-def kgwOnOff():
-    global kgwStart
-    if kgwStart == False:
-        kgwStart = True
-    else:
-        kgwStart = False
-
-def kgwDisplay(display):
-    start_time = datetime.datetime.now()
-    screenshot = pygame.surfarray.array3d(display)
-    screenshot = np.rot90(screenshot)
-    screenshot = np.flipud(screenshot)
-    screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2BGR)
-    frame = np.copy(screenshot)
-    copyFrame = np.copy(frame)
-    LDmodel.setFrame(copyFrame)
-    vLane = None
-    laneResults, laneDetects = LDmodel.getData()
-    laneChange.setLeftLane(laneResults[1])
-    laneChange.setRightLane(laneResults[2])
-    LDmodel.laneResults, LDmodel.laneDetects, vLane = laneChange.getLastLane2LDmodelData(laneResults, laneDetects)
-    frame = LDmodel.getDraw(frame, vLane=vLane)
-    frame = laneChange.drawAngleData(frame)
-    frame = laneChange.drawDeltaAngleData(frame)
-    frame = laneChange.drawVariance(frame)
-    frame = laneChange.drawWarningSign(frame)
-    VDmodel.setFrame(copyFrame)
-    frame = VDmodel.getDraw(frame)
-    end_time = datetime.datetime.now()
-    work_time = (end_time - start_time).total_seconds()
-    fps = 1 / work_time
-    cv2.putText(frame, f"FPS : {fps:.2f}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
-    # cv2.imshow("openCV", frame)
-    # cv2.waitKey(1)
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame = pygame.image.frombuffer(frame.flatten(), frame.shape[1::-1], 'RGB')
-    display.blit(frame, (0, 0))
-
-def kgwFunc(display):
-    global kgwStart
-    if kgwStart == True:
-        kgwDisplay(display)
-    
-##################################################################################################################################
 
 def game_loop(args):
     pygame.init()
@@ -1359,7 +1305,7 @@ def game_loop(args):
                 return
             world.tick(clock)
             world.render(display)
-            kgwFunc(display) # my Code
+            adas.Display(display) # my Code
             pygame.display.flip()
 
     finally:
@@ -1374,9 +1320,6 @@ def game_loop(args):
             world.destroy()
 
         pygame.quit()
-
-        # -> openCV 마무리
-        cv2.destroyAllWindows()
 
 
 # ==============================================================================
