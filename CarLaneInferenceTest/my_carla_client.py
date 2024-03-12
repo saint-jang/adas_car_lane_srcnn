@@ -53,7 +53,8 @@ Use ARROWS or WASD keys for control.
     H/?          : toggle help
     ESC          : quit
 
-    K            : kgw Mode On/Off
+    K            : kgw VD LD Mode On/Off
+    J            : kgw Lidar View On/Off
 """
 
 from __future__ import print_function 
@@ -128,6 +129,7 @@ try:
     from pygame.locals import K_g
     from pygame.locals import K_h
     from pygame.locals import K_i
+    from pygame.locals import K_j # my Code
     from pygame.locals import K_k # my Code
     from pygame.locals import K_l
     from pygame.locals import K_m
@@ -381,7 +383,9 @@ class World(object):
 # ==============================================================================
 
 from ADASlib.AdasCarla import ADAS # my Code Start
-adas = ADAS() # My Code End
+adas = ADAS() 
+from ADASlib.MyLidar import MyLidar 
+lidar = MyLidar() # My Code End
 
 class KeyboardControl(object):
     """Class that handles keyboard input."""
@@ -411,7 +415,9 @@ class KeyboardControl(object):
             if event.type == pygame.QUIT:
                 return True
             elif event.type == pygame.KEYUP:
-                if event.key == K_k: # my Code Start
+                if event.key == K_j: # my code Start
+                    lidar.OnOff() 
+                elif event.key == K_k:
                     adas.ChangeModel() # my code End
                 if self._is_quit_shortcut(event.key):
                     return True
@@ -712,6 +718,8 @@ class HUD(object):
         t = world.player.get_transform()
         v = world.player.get_velocity()
         c = world.player.get_control()
+
+        lidar.InputIMU(world.imu_sensor.accelerometer, world.imu_sensor.gyroscope) # my code
 
         global adas
         adas.speed = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
@@ -1103,6 +1111,7 @@ class RadarSensor(object):
 class CameraManager(object):
     def __init__(self, parent_actor, hud, gamma_correction):
         self.sensor = None
+        self.lidarSensor = None # my code
         self.surface = None
         self._parent = parent_actor
         self.hud = hud
@@ -1190,6 +1199,17 @@ class CameraManager(object):
             # circular reference.
             weak_self = weakref.ref(self)
             self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
+            # my code start
+            if self.lidarSensor is not None:
+                self.lidarSensor.destroy()
+                self.surface = None
+            self.lidarSensor = self._parent.get_world().spawn_actor(
+                self.sensors[8][-1],
+                self._camera_transforms[0][0],
+                attach_to=self._parent,
+                attachment_type=self._camera_transforms[0][1])
+            self.lidarSensor.listen(lambda image: lidar.InputPoints(image))
+            # my code end
         if notify:
             self.hud.notification(self.sensors[index][2])
         self.index = index
@@ -1306,6 +1326,7 @@ def game_loop(args):
             world.tick(clock)
             world.render(display)
             adas.Display(display) # my Code
+            lidar.Display() # my Code
             pygame.display.flip()
 
     finally:
