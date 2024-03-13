@@ -24,8 +24,7 @@ pip install ultralytics onnx onnxruntime deep-sort-realtime
 pip install -r requirements.txt
 
 4. 서버 실행상태 및 IP 확인
-303강의실 hkit303 와이파이에 접속.
-manual_control.py 코드에서 서버 IP를 192.168.0.2로 변경 (이미 변경되어 있음)
+manual_control.py 코드 1321번 줄에서 서버 IP 변경
 포트 2000번 확인
 
 5. 프로그램 실행
