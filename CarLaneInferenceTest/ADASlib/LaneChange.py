@@ -1,6 +1,6 @@
 # Code Maker : Kim Geon Woo
 # Start Make Day : 2024-02-15
-# Last Make Day : 2024-02-15
+# Last Make Day : 2024-02-16
 
 import math
 import cv2
@@ -25,6 +25,8 @@ class LaneChange:
         self.lVariange = None
         self.rVariance = None
         self.safeVarince = 10.0
+        self.LlastLane = []
+        self.RlastLane = []
 
     # input left lane data
     def setLeftLane(self, lane):
@@ -34,6 +36,7 @@ class LaneChange:
         if len(lane) >= 1:
             self.Lpoint = lane[0]
         self.lSign = self.setWarningSign(self.leftDeltaAngle, self.leftAngle, self.lVariange)
+        self.setLastLane(lane, "L")
 
     # input right lane data
     def setRightLane(self, lane):
@@ -43,6 +46,30 @@ class LaneChange:
         if len(lane) >= 1:
             self.Rpoint = lane[0]
         self.rSign = self.setWarningSign(self.rightDeltaAngle, self.rightAngle, self.rVariance)
+        self.setLastLane(lane, "R")
+
+    # set last lane
+    def setLastLane(self, lane, laneName):
+        if (laneName == "L") and (self.lSign != 0):
+            self.LlastLane = lane
+        if (laneName == "R") and (self.rSign != 0):
+            self.RlastLane = lane
+
+    # get last lane to LDmodel data
+    def getLastLane2LDmodelData(self, results, detects):
+        dstResults = results.copy()
+        dstDetects = detects.copy()
+        vLane = [False, False, False, False]
+        if (self.lSign == 0) and (len(self.LlastLane) >= 2):
+            dstResults[1] = self.LlastLane
+            dstDetects[1] = True
+            vLane[1] = True
+        if (self.rSign == 0) and (len(self.RlastLane) >= 2):
+            dstResults[2] = self.RlastLane
+            dstDetects[2] = True
+            vLane[2] = True
+        return dstResults, dstDetects, vLane
+
 
     # input lane, output angle, variance
     def getAngleInLane(self, lane):

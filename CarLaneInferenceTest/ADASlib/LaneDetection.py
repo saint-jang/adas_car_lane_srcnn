@@ -1,6 +1,6 @@
 # Code Maker : Kim Geon Woo
 # Start Make Day : 2024-02-14
-# Last Make Day : 2024-02-14
+# Last Make Day : 2024-02-16
 
 from myUltrafastLaneDetector import UltrafastLaneDetector, ModelType
 import numpy as np
@@ -23,6 +23,10 @@ class LD_Model:
                             (0, 255, 0),
                             (255, 0, 0),
                             (0, 255, 255)]
+        self.vLaneColors = [(100, 100, 200),
+                            (100, 200, 100),
+                            (200, 100, 100),
+                            (100, 200, 200)]
         self.polyColor = (255, 191, 0)
     
     # Input Frame In Model
@@ -43,7 +47,7 @@ class LD_Model:
         return self.laneResults, self.laneDetects
     
     # Draw And Get Frame
-    def getDraw(self, orgFrame):
+    def getDraw(self, orgFrame, vLane=[False, False, False, False]):
         frame = np.copy(orgFrame)
         # Draw My Driving Road
         if (self.laneDetects[1] and self.laneDetects[2]):
@@ -55,9 +59,8 @@ class LD_Model:
         # Draw Lane Points
         for laneNum, lanePoints in enumerate(self.laneResults):
             for lanePoint in lanePoints:
-                cv2.circle(frame,
-                           (lanePoint[0], lanePoint[1]),
-                           3,
-                           (self.laneColors[laneNum]),
-                           -1)
+                if vLane[laneNum]:
+                    cv2.circle(frame, (lanePoint[0], lanePoint[1]), 3, (self.vLaneColors[laneNum]), -1)
+                else:
+                    cv2.circle(frame, (lanePoint[0], lanePoint[1]), 3, (self.laneColors[laneNum]), -1)
         return frame

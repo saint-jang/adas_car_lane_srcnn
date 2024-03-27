@@ -1,6 +1,6 @@
 ## Code Maker : Kim Geon Woo
 # Start Make Day : 2024-02-13
-# Last Make Day : 2024-02-15
+# Last Make Day : 2024-02-16
 
 import cv2
 import numpy as np
@@ -176,14 +176,20 @@ def viewFrame(cap, stdscr):
                 # Lane Dtaction
                 LDmodel.setFrame(copyFrame)
                 # Draw Lane
-                frame = LDmodel.getDraw(frame)
+                # frame = LDmodel.getDraw(frame)
                 # On Off Use Lane Change
+                vLane = None
                 if LANE_CHANGE == True:
                     # Input Lane Data
                     laneResults, laneDetects = LDmodel.getData()
                     laneChange.setLeftLane(laneResults[1])
                     laneChange.setRightLane(laneResults[2])
-                    # Draw Angle
+                    # Input Warning Sign, Output last Lanes
+                    LDmodel.laneResults, LDmodel.laneDetects, vLane = laneChange.getLastLane2LDmodelData(laneResults, laneDetects)
+                # Draw Lane
+                frame = LDmodel.getDraw(frame, vLane=vLane)
+                # Draw Lane Change Data
+                if LANE_CHANGE == True:
                     # frame = laneChange.drawLane(frame)
                     frame = laneChange.drawAngleData(frame)
                     frame = laneChange.drawDeltaAngleData(frame)
