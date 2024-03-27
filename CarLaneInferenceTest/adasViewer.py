@@ -4,11 +4,10 @@ import cv2
 import numpy as np
 import argparse
 import datetime
-from ultralytics import YOLO
-from deep_sort_realtime.deepsort_tracker import DeepSort
-from myUltrafastLaneDetector import UltrafastLaneDetector, ModelType 
 import curses
 import matplotlib.pyplot as plt
+from ADASlib.VehicleDetection import VD_Model
+from ADASlib.LaneDetection import LD_Model
 
 ## input Parameter ##
 # Option Read
@@ -39,29 +38,14 @@ args = parser.parse_args()
 NO_VD = args.noVD
 VD_MODEL = args.VDmodel
 VD_MODEL_ADD = args.VDmodelAdd
-coco128 = open(VD_MODEL_ADD, 'r')
-VDdata = coco128.read()
-class_list = VDdata.split('\n')
-coco128.close()
-VDmodel = YOLO(VD_MODEL)
-
-# Deep Sort On Off Option
 DEEP_SORT = args.VDdeepsort
-if DEEP_SORT == True:
-    VDtracker = DeepSort(max_age=50)
+VDmodel = VD_Model(model=VD_MODEL, modelAdd=VD_MODEL_ADD, DS=DEEP_SORT)
 
 # Lane Detection Model Option
 NO_LD = args.noLD
 LD_MODEL = args.LDmodel
 LD_MODEL_ADD = args.LDmodelAdd
-if LD_MODEL_ADD == "culane":
-    LD_MODEL_ADD = ModelType.CULANE
-elif LD_MODEL_ADD == "tusimple":
-    LD_MODEL_ADD = ModelType.TUSIMPLE
-else:
-    print(f"can't input modelType : {LD_MODEL_ADD}")
-    exit()
-LDmodel = UltrafastLaneDetector(model_path=LD_MODEL, model_type=LD_MODEL_ADD)
+LDmodel = LD_Model(LD_MODEL, LD_MODEL_ADD)
 
 # Input Data Address
 INPUT = args.input 
@@ -106,81 +90,7 @@ NO_CURSES = args.noCurses
 
 # Camera Number
 CAM_NUMBER = args.camNumber
-
-# Vehicle Detection Function
-def VDmodelFunction(frame):
-    detection = VDmodel.predict(source=[frame], save=False, verbose=False)[0]
-    return detection
-
-# Draw Vehicle Boxes
-def drawBox(frame, detection):
-    CONFIDENCE_THRESHOLD = 0.6
-    GREEN = (0, 255, 0)
-    WHITE = (255, 255, 255)
-
-    results = []
-    label = None
-    xmin, ymin, xmax, ymax = None, None, None, None
-    # Read Boxes Data
-    for data in detection.boxes.data.tolist():
-        confidence = float(data[4])
-        if confidence < CONFIDENCE_THRESHOLD:
-            continue
-        xmin, ymin, xmax, ymax = int(data[0]), int(data[1]), int(data[2]), int(data[3])
-        label = int(data[5])
-        results.append([[xmin, ymin, xmax-xmin, ymax-ymin], confidence, label])
-
-    # Deep Sort Code => Change Boxes Chase Data
-    if DEEP_SORT == True:
-        tracks = VDtracker.update_tracks(results, frame=frame)
-        for track in tracks:
-            if not track.is_confirmed():
-                continue
-            track_id = track.track_id
-            ltrb = track.to_ltrb()
-            xmin, ymin, xmax, ymax = int(ltrb[0]), int(ltrb[1]), int(ltrb[2]), int(ltrb[3])
-
-    # Draw Boxes in Frame
-    for data in detection.boxes.data.tolist(): 
-        if None in [xmin, ymin, xmax, ymax, label]:
-            continue
-        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), GREEN, 2)
-        textboxSize = len(class_list[label]) * 11
-        cv2.rectangle(frame, (xmin, ymin - 20), (xmin + textboxSize, ymin), GREEN, -1)
-        cv2.putText(frame, class_list[label], (xmin + 5, ymin - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, WHITE, 2)
-    
-    return frame
         
-# Lane Detection Function
-def LDmodelFunction(frame):
-    orgImgH, orgImgW = frame.shape[:2]
-    cfgImgH, cfgImgW = float(LDmodel.cfg.img_h), float(LDmodel.cfg.img_w)
-    _, results, laneDetect = LDmodel.detect_lanes(frame)
-    for n1, lane in enumerate(results):
-        for n2, point in enumerate(lane):
-            changeW = int((orgImgW * point[0]) / cfgImgW)
-            changeH = int((orgImgH * point[1]) / cfgImgH)
-            results[n1][n2] = [changeW, changeH]
-
-    return results, laneDetect
-
-# Draw Lane in Frame
-def drawLane(frame, results, laneDetect):
-    lane_colors = [(0,0,255),(0,255,0),(255,0,0),(0,255,255)]
-
-    # Draw My Driving Road
-    if(laneDetect[1] and laneDetect[2]):
-        copyFrame = np.copy(frame)
-        cv2.fillPoly(copyFrame, pts = [np.vstack((results[1],np.flipud(results[2])))], color =(255,191,0))
-        frame = cv2.addWeighted(frame, 0.7, copyFrame, 0.3, 0)
-
-    # Draw Lane Points
-    for lane_num, lane_points in enumerate(results):
-                for lane_point in lane_points:
-                    cv2.circle(frame, (lane_point[0],lane_point[1]), 3, (lane_colors[lane_num]), -1)
-    
-    return frame
-
 # Frame View Function
 def viewFrame(cap, stdscr):
     out = None
@@ -252,14 +162,14 @@ def viewFrame(cap, stdscr):
             copyFrame = np.copy(frame)
             if NO_LD == False:
                 # Lane Dtaction
-                LDdatas, LD = LDmodelFunction(copyFrame)
+                LDmodel.setFrame(copyFrame)
                 # Draw Lane
-                frame = drawLane(frame, LDdatas, LD)
+                frame = LDmodel.getDraw(frame)
             if NO_VD == False:
                 # Vehicle Detection
-                VDdatas = VDmodelFunction(copyFrame)
+                VDmodel.setFrame(copyFrame)
                 # Draw Vehicle Baxes
-                frame = drawBox(frame, VDdatas)
+                frame = VDmodel.getDraw(frame)
 
         # Resize Output Frame Size
         frame = cv2.resize(frame, (0, 0), fx=OUTPUT_SIZE, fy=OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
