@@ -1,4 +1,6 @@
-# last day : 2024-02-13-11-16
+## Code Maker : Kim Geon Woo
+# Start Make Day : 2024-02-13
+# Last Make Day : 2024-02-15
 
 import cv2
 import numpy as np
@@ -8,17 +10,19 @@ import curses
 import matplotlib.pyplot as plt
 from ADASlib.VehicleDetection import VD_Model
 from ADASlib.LaneDetection import LD_Model
+from ADASlib.LaneChange import LaneChange
 
 ## input Parameter ##
 # Option Read
 parser = argparse.ArgumentParser()
 parser.add_argument("--noVD", dest="noVD", type=bool, default=False)
-parser.add_argument("--VDmodel", dest="VDmodel", type=str, default='best.pt')
+parser.add_argument("--VDmodel", dest="VDmodel", type=str, default='yolov8n_epoch_200_batch_32_best.pt')
 parser.add_argument("--VDmodelAdd", dest="VDmodelAdd", type=str, default='mycoco128.txt')
 parser.add_argument("--VDdeepsort", dest="VDdeepsort", type=bool, default=True)
 parser.add_argument("--noLD", dest="noLD", type=bool, default=False)
-parser.add_argument("--LDmodel", dest="LDmodel", type=str, default="epoch_20_batch_32.onnx")
+parser.add_argument("--LDmodel", dest="LDmodel", type=str, default="epoch_200_batch_32_loss_best.onnx")
 parser.add_argument("--LDmodelAdd", dest="LDmodelAdd", type=str, default="culane")
+parser.add_argument("--LaneChange", dest="LaneChange", type=bool, default=True)
 parser.add_argument("--input", dest="input", type=str, default="testVideo.mp4")
 parser.add_argument("--inputType", dest="inputType", type=str, default="video")
 parser.add_argument("--skip", dest="skip", type=int, default=0)
@@ -32,6 +36,7 @@ parser.add_argument("--graphFPS", dest="graphFPS", type=bool, default=False)
 parser.add_argument("--graphFPSname", dest="graphFPSname", type=str, default="adasGraphFPS.png")
 parser.add_argument("--noCurses", dest="noCurses", type=bool, default=False)
 parser.add_argument("--camNumber", dest="camNumber", type=int, default=0)
+parser.add_argument("--noView", dest="noView", type=bool, default=False)
 args = parser.parse_args()
 
 # Vehicle Detection Model Option
@@ -46,6 +51,10 @@ NO_LD = args.noLD
 LD_MODEL = args.LDmodel
 LD_MODEL_ADD = args.LDmodelAdd
 LDmodel = LD_Model(LD_MODEL, LD_MODEL_ADD)
+
+# Lane Change Option
+LANE_CHANGE = args.LaneChange
+laneChange = LaneChange()
 
 # Input Data Address
 INPUT = args.input 
@@ -90,6 +99,9 @@ NO_CURSES = args.noCurses
 
 # Camera Number
 CAM_NUMBER = args.camNumber
+
+# View On Off
+NO_VIEW = args.noView
         
 # Frame View Function
 def viewFrame(cap, stdscr):
@@ -165,15 +177,60 @@ def viewFrame(cap, stdscr):
                 LDmodel.setFrame(copyFrame)
                 # Draw Lane
                 frame = LDmodel.getDraw(frame)
+                # On Off Use Lane Change
+                if LANE_CHANGE == True:
+                    # Input Lane Data
+                    laneResults, laneDetects = LDmodel.getData()
+                    laneChange.setLeftLane(laneResults[1])
+                    laneChange.setRightLane(laneResults[2])
+                    # Draw Angle
+                    # frame = laneChange.drawLane(frame)
+                    frame = laneChange.drawAngleData(frame)
+                    frame = laneChange.drawDeltaAngleData(frame)
+                    frame = laneChange.drawVariance(frame)
+                    frame = laneChange.drawWarningSign(frame)
+                    # Write Lane Angle Data
+                    Langle, Rangle = laneChange.getAngle()
+                    texts.append(f"safeAngle : {laneChange.safeAngle:.2f}")
+                    if Langle == None :
+                        texts.append(f"leftLaneAngle : {None}")
+                    else:
+                        texts.append(f"leftLaneAngle : {Langle:.2f}")
+                    if Rangle == None :
+                        texts.append(f"RightLaneAngle : {None}")
+                    else:
+                        texts.append(f"RightLaneAngle : {Rangle:.2f}")
+                    # Write Lane Delta Angle Data
+                    LDangle, RDangle = laneChange.getDeltaAngle()
+                    texts.append(f"safeDeltaAngle : {laneChange.safeDelta:.2f}")
+                    if LDangle == None :
+                        texts.append(f"leftLaneDeltaAngle : {None}")
+                    else:
+                        texts.append(f"leftLaneDeltaAngle : {LDangle:.2f}")
+                    if RDangle == None :
+                        texts.append(f"RightLaneDeltaAngle : {None}")
+                    else:
+                        texts.append(f"RightLaneDeltaAngle : {RDangle:.2f}")
+                    # Write Variance
+                    lVar, rVar = laneChange.outputVariance()
+                    texts.append(f"safeVarance : {laneChange.safeVarince}")
+                    if lVar == None :
+                        texts.append(f"leftVariance : {None}")
+                    else:
+                        texts.append(f"leftVariance : {lVar:.2f}")
+                    if rVar == None :
+                        texts.append(f"RightVariance : {None}")
+                    else:
+                        texts.append(f"RightVariance : {rVar:.2f}")
+                    # Write Warning Signs
+                    lSign, rSign = laneChange.getWarningSign()
+                    texts.append("LeftLane : " + lSign)
+                    texts.append("RightLane : " + rSign)
             if NO_VD == False:
                 # Vehicle Detection
                 VDmodel.setFrame(copyFrame)
                 # Draw Vehicle Baxes
                 frame = VDmodel.getDraw(frame)
-
-        # Resize Output Frame Size
-        frame = cv2.resize(frame, (0, 0), fx=OUTPUT_SIZE, fy=OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
-        texts.append(f"OutputResize : {frame.shape[1]} {frame.shape[0]}")
 
         # End Time Read
         end_time = datetime.datetime.now()
@@ -188,6 +245,10 @@ def viewFrame(cap, stdscr):
         if GRAPH_FPS == True:
             graphFPSy.append(fps)
 
+        # Resize Output Frame Size
+        frame = cv2.resize(frame, (0, 0), fx=OUTPUT_SIZE, fy=OUTPUT_SIZE, interpolation=cv2.INTER_LINEAR)
+        texts.append(f"OutputResize : {frame.shape[1]} {frame.shape[0]}")
+
         # Write Frame 
         if (RECORD == True) and (INPUT_TYPE != "image"):
             out.write(frame)
@@ -198,7 +259,8 @@ def viewFrame(cap, stdscr):
             cursesDisplay(stdscr, texts)
         
         # Show Frame
-        cv2.imshow('adasViewer.py', frame)
+        if NO_VIEW == False:
+            cv2.imshow('adasViewer.py', frame)
 
         # If No Use Model, Frame Speed Is 25
         timeRate = 25
