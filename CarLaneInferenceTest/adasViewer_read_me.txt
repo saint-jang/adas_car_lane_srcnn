@@ -28,7 +28,7 @@ adasViewer.py 사용법
 			기본설정 : False
 		--VDmodel <차량인식모델>
 			차량인식 모델 변경
-			기본설정 : "yolov8n_epoch_200_batch_32_best.pt"
+			기본설정 : "yolov8n_epoch_200_batch_60_best.pt"
 		--VDmodelAdd <추가사항>
 			차량인식 모델의 추가사항 변경
 			기본설정 : "mycoco128.txt"
@@ -41,7 +41,7 @@ adasViewer.py 사용법
 			기본설정 : False
 		--LDmodel <차선인식모델>
 			차선인식 모델 변경
-			기본설정 : "epoch_200_batch_32_loss_best.onnx"
+			기본설정 : "epoch_200_batch_50_loss_best.onnx"
 		--LDmodelAdd <추가사항>
 			차선인식 모델의 추가사항 변경
 			기본설정 : "culane"

@@ -1,6 +1,6 @@
 ## Code Maker : Kim Geon Woo
 # Start Make Day : 2024-02-13
-# Last Make Day : 2024-02-16
+# Last Make Day : 2024-02-19
 
 import cv2
 import numpy as np
@@ -16,11 +16,11 @@ from ADASlib.LaneChange import LaneChange
 # Option Read
 parser = argparse.ArgumentParser()
 parser.add_argument("--noVD", dest="noVD", type=bool, default=False)
-parser.add_argument("--VDmodel", dest="VDmodel", type=str, default='yolov8n_epoch_200_batch_32_best.pt')
+parser.add_argument("--VDmodel", dest="VDmodel", type=str, default='yolov8n_epoch_200_batch_60_best.pt')
 parser.add_argument("--VDmodelAdd", dest="VDmodelAdd", type=str, default='mycoco128.txt')
 parser.add_argument("--VDdeepsort", dest="VDdeepsort", type=bool, default=True)
 parser.add_argument("--noLD", dest="noLD", type=bool, default=False)
-parser.add_argument("--LDmodel", dest="LDmodel", type=str, default="epoch_200_batch_32_loss_best.onnx")
+parser.add_argument("--LDmodel", dest="LDmodel", type=str, default="epoch_200_batch_50_loss_best.onnx")
 parser.add_argument("--LDmodelAdd", dest="LDmodelAdd", type=str, default="culane")
 parser.add_argument("--LaneChange", dest="LaneChange", type=bool, default=True)
 parser.add_argument("--input", dest="input", type=str, default="testVideo.mp4")
