@@ -1,4 +1,4 @@
-# last day : 2024-02-12
+# last day : 2024-02-13-11-16
 
 import cv2
 import numpy as np
@@ -31,6 +31,8 @@ parser.add_argument("--record", dest="record", type=bool, default=False)
 parser.add_argument("--recordName", dest="recordName", type=str, default="adasVideo.mp4")
 parser.add_argument("--graphFPS", dest="graphFPS", type=bool, default=False)
 parser.add_argument("--graphFPSname", dest="graphFPSname", type=str, default="adasGraphFPS.png")
+parser.add_argument("--noCurses", dest="noCurses", type=bool, default=False)
+parser.add_argument("--camNumber", dest="camNumber", type=int, default=0)
 args = parser.parse_args()
 
 # Vehicle Detection Model Option
@@ -98,6 +100,12 @@ GRAPH_FPS = args.graphFPS
 
 # GraphFPS Name
 GRAPH_FPS_NAME = args.graphFPSname
+
+# Curses On Off
+NO_CURSES = args.noCurses
+
+# Camera Number
+CAM_NUMBER = args.camNumber
 
 # Vehicle Detection Function
 def VDmodelFunction(frame):
@@ -274,11 +282,13 @@ def viewFrame(cap, stdscr):
         if (RECORD == True) and (INPUT_TYPE != "image"):
             out.write(frame)
 
+        # Show NO_CURSES
+        if NO_CURSES ==False:
+            # Show Curses
+            cursesDisplay(stdscr, texts)
+        
         # Show Frame
         cv2.imshow('adasViewer.py', frame)
-
-        # Show Curses
-        cursesDisplay(stdscr, texts)
 
         # If No Use Model, Frame Speed Is 25
         timeRate = 25
@@ -319,7 +329,7 @@ def viewVideo(stdscr):
 
 # Camera View Function
 def viewCamera(stdscr):
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(CAM_NUMBER)
     if cap.isOpened()==False:
         print("Camera Open Failed")
         exit()
@@ -344,4 +354,7 @@ def main(stdscr):
         viewCamera(stdscr)
 
 if __name__ == "__main__":
-    curses.wrapper(main)
+    if NO_CURSES == False:
+        curses.wrapper(main)
+    else:
+        main(None)
